@@ -152,8 +152,8 @@ export function Formulario() {
                                             <td className="border border-gray-300 p-3 max-w-xs truncate">{item.datos}</td>
                                             <td className="border border-gray-300 p-2 w-32"> {/* Ancho fijo pequeño para acciones */}
                                                 <div className="flex flex-col gap-2">
-                                                    <button className="bg-purple-500 ... text-sm py-1">Editar</button>
-                                                    <button className="bg-red-500 ... text-sm py-1">Eliminar</button>
+                                                    <button onClick={() => handleEditarClick(item)} className="bg-purple-500 text-white text-sm py-1 rounded">Editar</button>
+                                                    <button onClick={() => handleEliminar(item.id)} className="bg-red-500 text-white text-sm py-1 rounded">Eliminar</button>
                                                 </div>
                                             </td>
 
