@@ -1,60 +1,78 @@
 import { useEffect, useState } from "react"
 import ModalEditar from "../modal/EditarDatos"
-
-
+// 1. Importa el cliente de supabase que configuraste
+import { supabase } from "../database/conexion"
 export function Formulario() {
-
+    // 2. Ajustamos la interfaz a tu base de datos real (id y datos)
     interface Usuario {
-        usuario: string
+        id?: number;
+        datos: string;
     }
 
-    const [usuarioInput, setUsuarioInput] = useState("") //constante para el input del usuario
-    const [usuarios, setUsuarios] = useState<Usuario[]>([]) //esta constante almacena los usuarios
-    const [formErrors, setFormErrors] = useState<{ usuario: string }>({
-        usuario: ""
-    }) //const para los errores del formulario
-    const [isModalOpen, setIsModalOpen] = useState(false) //estado para controlar si el modal está abierto
-    const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null) //estado para guardar el usuario que se está editando
+    const [usuarioInput, setUsuarioInput] = useState("")
+    const [usuarios, setUsuarios] = useState<Usuario[]>([])
+    const [formErrors, setFormErrors] = useState({ usuario: "" })
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null)
 
-    //validacion de formulario
     const validarFormulario = (usuario: string) => {
-        if (usuario === "") { //si el usuario es vacio
-            setFormErrors({ usuario: "El campo de usuario no puede estar vacío" })
+        if (usuario === "") {
+            setFormErrors({ usuario: "El campo no puede estar vacío" })
             return false
         }
         setFormErrors({ usuario: "" })
         return true
     }
 
+    useEffect(() => {
+        const leerDatos = async () => {
+            const { data, error } = await supabase
+                .from('datos') // Nombre de tu tabla
+                .select('*')
+
+            if (error) console.error('Error:', error)
+            else setUsuarios(data || [])
+        }
+        leerDatos()
+    }, [])
+
     //manejar envio del formulario
-    // const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    //     e.preventDefault();
-    //     if (validarFormulario(usuarioInput)) {
-    //         try {
-    //             const response = await fetch('https://mysql-seguridad.alwaysdata.net/usuariosCrud.php', {
-    //                 method: 'POST',
-    //                 headers: {
-    //                     'Content-Type': 'application/json'
-    //                 },
-    //                 body: JSON.stringify({ usuario: usuarioInput })
-    //             });
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (validarFormulario(usuarioInput)) {
+            try {
+                const { data, error } = await supabase
+                    .from('datos')
+                    .insert([{ datos: usuarioInput }])
+                    .select() // select() devuelve el objeto insertado con su ID
 
-    //             const json = await response.json().catch(() => ({}));
-    //             console.log('POST response:', json);
+                if (error) throw error;
 
-    //             if (response.ok) {
-    //                 setUsuarios([...usuarios, { usuario: usuarioInput }]);
-    //                 setUsuarioInput("");
-    //             } else {
-    //                 setFormErrors({ usuario: json.error || 'Error al insertar datos' });
-    //                 console.error('Server error:', json);
-    //             }
-    //         } catch (error) {
-    //             console.error("Error al insertar datos:", error);
-    //             setFormErrors({ usuario: 'Error de red al insertar datos' });
-    //         }
-    //     }
-    // }
+                if (data) {
+                    setUsuarios([...usuarios, data[0]]);
+                    setUsuarioInput("");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                setFormErrors({ usuario: 'Error al conectar con Supabase' });
+            }
+        }
+    }
+
+    const handleEliminar = async (idAEliminar?: number) => {
+        if (!idAEliminar) return;
+
+        const { error } = await supabase
+            .from('datos')
+            .delete()
+            .eq('id', idAEliminar)
+
+        if (error) {
+            console.error('Error al eliminar:', error)
+        } else {
+            setUsuarios(usuarios.filter(user => user.id !== idAEliminar))
+        }
+    }
 
     //manejar apertura del modal de edición
     const handleEditarClick = (usuario: Usuario) => {
@@ -69,33 +87,35 @@ export function Formulario() {
     }
 
     //manejar guardado de datos editados
-    const handleSaveModal = (datosActualizados: Usuario) => {
-        setUsuarios(usuarios.map(user =>
-            user.usuario === usuarioEditando?.usuario ? datosActualizados : user
-        ))
-        handleCloseModal()
+    const handleSaveModal = async (datosActualizados: Usuario) => {
+        try {
+            // 1. Actualizamos en Supabase usando el ID
+            const { error } = await supabase
+                .from('datos')
+                .update({ datos: datosActualizados.datos })
+                .eq('id', usuarioEditando?.id);
+
+            if (error) throw error;
+
+            // 2. Actualizamos el estado local para que se vea el cambio en la tabla
+            setUsuarios(usuarios.map(user =>
+                user.id === usuarioEditando?.id ? { ...user, datos: datosActualizados.datos } : user
+            ));
+
+            handleCloseModal();
+        } catch (error) {
+            console.error("Error al actualizar:", error);
+            alert("No se pudo actualizar el registro");
+        }
     }
 
-    //manejar eliminación de usuario
-    const handleEliminar = (usuarioAEliminar: string) => {
-        setUsuarios(usuarios.filter(user => user.usuario !== usuarioAEliminar))
-    }
-
-    //const para cargar datos a la bd
-    // useEffect(() => {
-    //     fetch('https://mysql-seguridad.alwaysdata.net/usuariosCrud.php')
-    //         .then(res => res.json())
-    //         .then(data => {
-    //             setUsuarios(data.map((u: any) => ({ usuario: u.users })))
-    //         });
-    // }, []);
 
     return (
         <div className="bg-amber-50 min-h-screen p-8">
             <div className="max-w-2xl mx-auto">
                 <div className="bg-white p-8 rounded-lg shadow-lg mb-8">
                     <h2 className="text-blue-500 text-2xl font-bold mb-6">Inicia Sesión</h2>
-                    <form className="flex flex-col p-4" >
+                    <form className="flex flex-col p-4" onSubmit={handleSubmit}>
                         <label className="font-semibold mb-2">Usuario</label>
                         <input
                             type="text"
@@ -115,27 +135,28 @@ export function Formulario() {
                     <div className="bg-white p-8 rounded-lg shadow-lg">
                         <h3 className="text-blue-500 text-2xl font-bold mb-6">Tabla de Registros</h3>
                         <div className="overflow-x-auto">
-                            <table className="w-full border-collapse">
+                            <table className="min-w-full border-collapse">
                                 <thead>
                                     <tr className="bg-blue-500 text-white">
-                                        <th className="border border-blue-500 p-3 text-left">Usuario</th>
+                                        <th className="border border-blue-500 p-3 text-left">Id</th>
+                                        <th className="border border-blue-500 p-3 text-left w-2/3">Datos</th>
                                         <th className="border border-blue-500 p-3 text-left">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {/* el .mpa mapea cada elemento de la lista de usuarios y los muestra en la tabla */}
-                                    {usuarios.map((users) => (
-                                        <tr key={users.usuario} className="hover:bg-gray-100">
+                                    {usuarios.map((item) => (
+                                        <tr key={item.id} className="hover:bg-gray-100">
 
-                                            <td className="border border-gray-300 p-3">{users.usuario}</td>
-                                            <td className="border border-gray-300 p-3">
-                                                <button
-                                                    onClick={() => handleEditarClick(users)}
-                                                    className="bg-purple-500 text-white py-2 px-4  mr-4 rounded-lg  font-semibold">Editar</button>
-                                                <button
-                                                    onClick={() => handleEliminar(users.usuario)}
-                                                    className="bg-red-500 text-white py-2 px-4 rounded-lg  font-semibold">Eliminar</button>
+                                            <td className="border border-gray-300 p-3">{item.id}</td>
+                                            <td className="border border-gray-300 p-3 max-w-xs truncate">{item.datos}</td>
+                                            <td className="border border-gray-300 p-2 w-32"> {/* Ancho fijo pequeño para acciones */}
+                                                <div className="flex flex-col gap-2">
+                                                    <button className="bg-purple-500 ... text-sm py-1">Editar</button>
+                                                    <button className="bg-red-500 ... text-sm py-1">Eliminar</button>
+                                                </div>
                                             </td>
+
                                         </tr>
                                     ))}
                                 </tbody>

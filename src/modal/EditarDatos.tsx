@@ -1,59 +1,65 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
+// 1. Interfaz actualizada para coincidir con la base de datos
 interface Usuario {
-    usuario: string
+    id?: number;
+    datos: string;
 }
 
 interface ModalEditarProps {
-    usuario: Usuario 
-    isOpen: boolean
-    onClose: () => void
-    onSave: (datosActualizados: Usuario) => void //los datos actualizados son los datos del usuario que se edita
+    usuario: Usuario | null; 
+    isOpen: boolean;
+    onClose: () => void;
+    // Agregamos Promise<void> porque la función en el padre es async
+    onSave: (datosActualizados: Usuario) => void | Promise<void>; 
 }
 
 export function ModalEditar({ usuario, isOpen, onClose, onSave }: ModalEditarProps) {
+    // Estado para el input usando la propiedad 'datos'
+    const [usuarioInput, setUsuarioInput] = useState("")
+    const [formErrors, setFormErrors] = useState({ datos: "" })
 
-    const [usuarioInput, setUsuarioInput] = useState(usuario?.usuario || "") //este const almacena el input en usuario
-    const [formErrors, setFormErrors] = useState<{ usuario: string}>({
-        usuario: "",
-        
-    })
-
-    // Validar formulario
-    const validarFormulario = (usuario: string) => {
-        if (usuario === "") {
-            setFormErrors({ usuario: "El campo de usuario no puede estar vacío" })
-            return false
+    // Sincronizar el input con el usuario seleccionado cuando el modal se abre
+    useEffect(() => {
+        if (usuario) {
+            setUsuarioInput(usuario.datos);
         }
-        setFormErrors({ usuario: "" })
-        return true
+    }, [usuario, isOpen]);
+
+    const validarFormulario = (texto: string) => {
+        if (texto.trim() === "") {
+            setFormErrors({ datos: "El campo no puede estar vacío" });
+            return false;
+        }
+        setFormErrors({ datos: "" });
+        return true;
     }
 
-    // Manejar guardado de datos editados
     const handleSave = () => {
         if (validarFormulario(usuarioInput) && usuario) {
+            // Enviamos el objeto con el ID original y el texto nuevo
             onSave({
-                usuario: usuarioInput,
-            })
-            onClose()
+                ...usuario,
+                datos: usuarioInput,
+            });
         }
     }
 
-    if (!isOpen || !usuario) return null // Si el modal no está abierto o no hay usuario, no renderiza nada
+    if (!isOpen || !usuario) return null;
 
     return (
-        <div className="fixed inset-0 bg-[#3a373796] bg-opacity-100 flex items-center justify-center">
+        <div className="fixed inset-0 bg-[#3a373796] bg-opacity-100 flex items-center justify-center z-50">
             <div className="bg-white p-8 rounded-lg shadow-lg w-96">
-                <h2 className="text-blue-500 text-2xl font-bold mb-6">Editar Datos de Usuario</h2>
+                <h2 className="text-blue-500 text-2xl font-bold mb-6">Editar Registro</h2>
 
-                <label className="font-semibold mb-2 block">Usuario</label>
+                <label className="font-semibold mb-2 block">Dato</label>
                 <input
                     type="text"
                     value={usuarioInput}
                     onChange={(e) => setUsuarioInput(e.target.value)}
                     className="border-2 rounded-lg p-2 mb-3 w-full focus:outline-none focus:border-blue-500"
                 />
-                {formErrors.usuario && <p className="text-red-500 text-sm mb-2">{formErrors.usuario}</p>}
+                {formErrors.datos && <p className="text-red-500 text-sm mb-2">{formErrors.datos}</p>}
 
                 <div className="flex gap-4 mt-6">
                     <button
@@ -74,4 +80,4 @@ export function ModalEditar({ usuario, isOpen, onClose, onSave }: ModalEditarPro
     )
 }
 
-export default ModalEditar
+export default ModalEditar;
