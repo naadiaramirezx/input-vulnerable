@@ -10,16 +10,14 @@ interface ModalEditarProps {
     usuario: Usuario | null; 
     isOpen: boolean;
     onClose: () => void;
-    // Agregamos Promise<void> porque la función en el padre es async
     onSave: (datosActualizados: Usuario) => void | Promise<void>; 
 }
 
 export function ModalEditar({ usuario, isOpen, onClose, onSave }: ModalEditarProps) {
-    // Estado para el input usando la propiedad 'datos'
     const [usuarioInput, setUsuarioInput] = useState("")
     const [formErrors, setFormErrors] = useState({ datos: "" })
 
-    // Sincronizar el input con el usuario seleccionado cuando el modal se abre
+    // Sincronizar el input con el usuario seleccionado
     useEffect(() => {
         if (usuario) {
             setUsuarioInput(usuario.datos);
@@ -35,10 +33,10 @@ export function ModalEditar({ usuario, isOpen, onClose, onSave }: ModalEditarPro
         return true;
     }
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (validarFormulario(usuarioInput) && usuario) {
-            // Enviamos el objeto con el ID original y el texto nuevo
-            onSave({
+            // Ejecutamos la función onSave que viene del padre
+            await onSave({
                 ...usuario,
                 datos: usuarioInput,
             });
@@ -62,15 +60,18 @@ export function ModalEditar({ usuario, isOpen, onClose, onSave }: ModalEditarPro
                 {formErrors.datos && <p className="text-red-500 text-sm mb-2">{formErrors.datos}</p>}
 
                 <div className="flex gap-4 mt-6">
+                    {/* Botón Guardar */}
                     <button
                         onClick={handleSave}
-                        className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-800 font-semibold"
+                        className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-800 font-semibold transition-colors"
                     >
                         Guardar
                     </button>
+                    
+                    {/* Botón Cancelar - AHORA EN ROJO */}
                     <button
                         onClick={onClose}
-                        className="flex-1 bg-gray-400 text-white py-2 px-4 rounded-lg hover:bg-gray-600 font-semibold"
+                        className="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-800 font-semibold transition-colors"
                     >
                         Cancelar
                     </button>
